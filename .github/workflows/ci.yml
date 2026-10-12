@@ -1,0 +1,35 @@
+name: Build Chinese DLL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+      - name: Configure
+        run: cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -S . -B build -G Ninja
+      - name: Build
+        run: cmake --build build --config Release --target YimMenuV2 --parallel 4
+      - name: Verify and hash DLL
+        shell: pwsh
+        run: |
+          if (!(Test-Path build/YimMenuV2.dll)) { throw 'DLL missing' }
+          $hash = (Get-FileHash build/YimMenuV2.dll -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  YimMenuV2.dll" | Set-Content build/SHA256SUMS.txt -Encoding ascii
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YimMenuV2-zh-${{ github.sha }}
+          path: |
+            build/YimMenuV2.dll
+            build/SHA256SUMS.txt
